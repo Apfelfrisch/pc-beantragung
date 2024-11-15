@@ -2,6 +2,8 @@ package database
 
 import (
 	"database/sql"
+	_ "embed"
+	"io"
 	"log"
 	"os"
 	"pc-beantragung/internal/domain/signon"
@@ -9,6 +11,9 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+//go:embed blank-sqlite.sqlite
+var sqlite []byte
 
 // Service represents a service that interacts with a database.
 type Service interface {
@@ -22,9 +27,28 @@ type service struct {
 }
 
 var (
-	dburl      = os.Getenv("BLUEPRINT_DB_URL")
+	dburl      = "./signons.sqlite"
 	dbInstance *service
 )
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
 
 func New() Service {
 	// Reuse Connection
@@ -32,10 +56,16 @@ func New() Service {
 		return dbInstance
 	}
 
+	if _, err := os.Stat(dburl); err != nil {
+		file, _ := os.Create("./signons.sqlite")
+		defer file.Close()
+		_, err = file.Write(sqlite)
+		file.Sync()
+	}
+
 	db, err := sql.Open("sqlite3", dburl)
+
 	if err != nil {
-		// This will not be a connection error, but a DSN parse error or
-		// another initialization error.
 		log.Fatal(err)
 	}
 

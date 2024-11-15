@@ -2,7 +2,6 @@ package signon
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"time"
 )
@@ -171,29 +170,37 @@ func (self *signOnSqLiteRepo) insertSignOn(tx *sql.Tx, signon SignOn) error {
 }
 
 func (self *signOnSqLiteRepo) insertMissingState() error {
-	signons, err := self.signOnsFromQuery(SELECT + " where signon_context.state is null")
+	// Select Missing context
+	rows, err := self.db.Query(
+		`SELECT id_pc from signons left join signon_context on signons.id_pc = signon_context.signon_id_pc where signon_context.state is null`,
+	)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Print(err)
 		return err
 	}
 
+	defer rows.Close()
+
+	// Prepare Insert
 	tx, err := self.db.Begin()
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 
-	query := "INSERT INTO signon_context (signon_id_pc, state) values (?, ?)"
-	stmt, err := tx.Prepare(query)
+	stmt, err := tx.Prepare("INSERT INTO signon_context (signon_id_pc, state, comment) values (?, ?, ?)")
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
 	defer stmt.Close()
 
-	for _, signon := range signons {
-		_, err := stmt.Exec(signon.IdPc, StateProcessing)
+	var pcId string
+	for rows.Next() {
+		rows.Scan(&pcId)
+		_, err := stmt.Exec(pcId, StateProcessing, "")
 
 		if err != nil {
 			log.Print(err)

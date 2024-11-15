@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"pc-beantragung/internal/database"
 	"strconv"
 	"time"
-
-	"pc-beantragung/internal/database"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -18,15 +17,23 @@ type Server struct {
 }
 
 func NewServer() *http.Server {
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	getPort := func() int {
+		port, valid := os.LookupEnv("PORT")
+		if valid {
+			port, _ := strconv.Atoi(port)
+			return port
+		}
+		return 8080
+	}
+
 	NewServer := &Server{
-		port: port,
+		port: getPort(),
 		db:   database.New(),
 	}
 
 	// Declare Server config
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
+		Addr:         fmt.Sprintf("127.0.0.1:%d", NewServer.port),
 		Handler:      NewServer.RegisterRoutes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
