@@ -26,7 +26,7 @@ templ SignOnList(activeFilter Filter, signons []s.SignOn) {
 	</div>
 
 	<div class="text-sm relative flex flex-col w-full h-full overflow-scroll text-gray-700 bg-white shadow-md rounded-xl bg-clip-border">
-		<table class="w-full text-left table-auto min-w-max">
+		<table id="signon-table" class="w-full text-left table-auto min-w-max">
 			<thead>
 			<tr>
 				<th class="p-4 border-b border-blue-gray-100 bg-blue-gray-50"></th>
@@ -44,26 +44,15 @@ templ SignOnList(activeFilter Filter, signons []s.SignOn) {
 			</thead>
 			<tbody>
 			for _, so := range signons {
-				@SignOnListRow(&so, false, false)
+				@SignOnListRow(&so)
 			}
 			</tbody>
 		</table>
 	</div>
 }
 
-templ SignOnListRow(so *s.SignOn, active bool, swapOob bool) {
-	// We hab t wrap a templae tag, for Some Elements see https://htmx.org/attributes/hx-swap-oob/
-	if swapOob {
-		@templ.Raw("<template>")
-	}
-	<tr id={"signon-row-" + ToString(so.Id)}
-		if active {
-			class="bg-red-200"
-		}
-		if swapOob {
-			hx-swap-oob="true"
-		}
-	>
+templ SignOnListRow(so *s.SignOn) {
+	<tr id={"signon-row-" + ToString(so.Id)}>
 		<td
 			class="p-4 border-b border-r border-blue-gray-50 cursor-pointer"
 			hx-get={"/signon/sidebar/" + ToString(so.Id)}
@@ -87,9 +76,6 @@ templ SignOnListRow(so *s.SignOn, active bool, swapOob bool) {
 		<td class="p-4 border-b border-blue-gray-50">{ NullStringToString(so.Malo) }</td>
 		<td class="p-4 border-b border-blue-gray-50">{ NullStringToString(so.Melo) }</td>
 	</tr>
-	if swapOob {
-		@templ.Raw("</template>")
-	}
 }
 
 templ tabHeaderItem(name string, url string, active bool) {
@@ -102,9 +88,6 @@ templ tabHeaderItem(name string, url string, active bool) {
 			}
 		>{ name }</a>
 	</li>
-
-	<!-- Disabled -->
-	<!-- class="inline-block p-4 text-gray-400 rounded-t-lg cursor-not-allowed dark:text-gray-500" -1-> -->
 }
 
 templ Sidebar(signon *s.SignOn) {

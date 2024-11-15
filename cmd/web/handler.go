@@ -45,13 +45,9 @@ func ToggleSidebarHandler(db database.Service, toogleOn bool) func(w http.Respon
 		signon, _ := db.SignOnRepo().GetById(id)
 
 		if !toogleOn {
-			SignOnListRow(signon, false, true).Render(r.Context(), w)
 			return
 		}
 
-		SignOnListRow(signon, true, true).Render(r.Context(), w)
-
-		fmt.Println(signon)
 		Sidebar(signon).Render(r.Context(), w)
 	}
 }
@@ -78,8 +74,6 @@ func UpdateSignonHandler(db database.Service) func(w http.ResponseWriter, r *htt
 		if newState != signon.MyState {
 			signon.MyState = newState
 			RemovedTr(signon.Id).Render(r.Context(), w)
-		} else {
-			SignOnListRow(signon, false, true).Render(r.Context(), w)
 		}
 
 		db.SignOnRepo().UpdateContext(signon)

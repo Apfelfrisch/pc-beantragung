@@ -14,5 +14,28 @@ templ Base() {
 			</main>
 			<aside id="sidebar"></aside>
 		</body>
+		<script>
+			var highlighId = null;
+
+			const highlighRow = (event) => {
+				if (event.detail.target.nodeName !== 'ASIDE') {
+					return;
+				}
+
+				if (highlighId !== null) {
+					document.getElementById(highlighId).className = "";
+				}
+
+				if (event.target.nodeName !== 'TD') {
+					return;
+				}
+
+				highlighId = "signon-row-"+event.detail.pathInfo.requestPath.split("/").pop();
+
+				document.getElementById(highlighId).className = "bg-red-200";
+			};
+
+			document.addEventListener('htmx:afterRequest', (event) => highlighRow(event))
+	  </script>
 	</html>
 }
