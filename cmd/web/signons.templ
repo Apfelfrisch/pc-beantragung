@@ -52,6 +52,7 @@ templ SignOnList(activeFilter Filter, signons []s.SignOn) {
 }
 
 templ SignOnListRow(so *s.SignOn, active bool, swapOob bool) {
+	// We hab t wrap a templae tag, for Some Elements see https://htmx.org/attributes/hx-swap-oob/
 	if swapOob {
 		@templ.Raw("<template>")
 	}
