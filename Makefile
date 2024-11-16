@@ -25,7 +25,13 @@ build: tailwind templ-install
 	@echo "Building..."
 	@templ generate
 	@./tailwindcss -i cmd/web/assets/css/input.css -o cmd/web/assets/css/output.css
-	@go build -o beantragungen cmd/api/main.go
+	@go build -o pcl-beantragung cmd/api/main.go
+
+windows-build: tailwind templ-install
+	@echo "Building for Windows..."
+	@templ generate
+	@./tailwindcss -i cmd/web/assets/css/input.css -o cmd/web/assets/css/output.css
+	@export GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc && go build -o pcl-beantragung.exe cmd/api/main.go
 
 # Run the application
 run:

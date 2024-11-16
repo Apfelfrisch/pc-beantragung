@@ -12,7 +12,7 @@ tmp/
 .vscode
 .idea
 .env
-beantragungen
+pcl-beantragung
 *.sqlite
 *templ.go
 .DS_Store
