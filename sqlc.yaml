@@ -1,0 +1,9 @@
+version: "2"
+sql:
+- schema: "internal/signon/schema.sql"
+  queries: "internal/signon/query.sql"
+  engine: "sqlite"
+  gen:
+    go:
+      package: "signon"
+      out: "internal/signon"

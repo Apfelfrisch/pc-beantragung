@@ -10,12 +10,31 @@ templ Base() {
 			<script src="assets/js/htmx.min.js"></script>
 		</head>
 		<body class="bg-gray-100">
+			<div class="p-4">
+				<div class="space-y-8 mb-4">
+					<form action="/signon/import-file" method="post" enctype="multipart/form-data">
+					  <input
+						type="file"
+						name="signons"
+						class="text-gray-500 font-medium text-sm bg-gray-100 file:cursor-pointer cursor-pointer file:border-0 file:py-2 file:px-4 file:mr-4 file:bg-gray-800 file:hover:bg-gray-700 file:text-white rounded"
+						onchange="this.form.submit()"
+					  />
+					</form>
+				</div>
+			</div>
+
 			<main class="p-4" hx-get="/signon?filter[state]=processing" hx-trigger="load">
 			</main>
 			<aside id="sidebar"></aside>
 		</body>
 		<script>
 			var highlighId = null;
+
+			const resetHighlightId = (event) => {
+				if (event.detail.target.nodeName === 'MAIN') {
+					highlighId = null;
+				}
+			}
 
 			const highlighRow = (event) => {
 				if (event.detail.target.nodeName !== 'ASIDE') {
@@ -35,6 +54,7 @@ templ Base() {
 				document.getElementById(highlighId).className = "bg-red-200";
 			};
 
+			document.addEventListener('htmx:beforeRequest', (event) => resetHighlightId(event))
 			document.addEventListener('htmx:afterRequest', (event) => highlighRow(event))
 	  </script>
 	</html>

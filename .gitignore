@@ -16,4 +16,4 @@ pcl-beantragung
 *.sqlite
 *templ.go
 .DS_Store
-# vendor/
+vendor/

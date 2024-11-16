@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -36,6 +38,28 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	done <- true
 }
 
+func openbrowser(url string) {
+	// Wait for the Server to came up
+	time.Sleep(time.Millisecond * 300)
+
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	server := server.NewServer()
 
@@ -47,7 +71,10 @@ func main() {
 
 	fmt.Println("PowerCloud Beantragungen: http://" + server.Addr)
 
+	go openbrowser("http://" + server.Addr)
+
 	err := server.ListenAndServe()
+
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}

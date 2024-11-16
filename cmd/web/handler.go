@@ -1,38 +1,39 @@
 package web
 
 import (
-	"database/sql"
-	"encoding/csv"
-	"fmt"
-	"io"
+	"context"
 	"net/http"
+	"pc-beantragung/internal/csv"
 	"pc-beantragung/internal/database"
-	. "pc-beantragung/internal/domain/signon"
+	so "pc-beantragung/internal/signon"
 	"strconv"
+
+	"github.com/samber/lo"
 )
 
 type Filter struct {
-	State  ProcessingState
+	State  string
 	Active bool
 }
 
-func (self Filter) has(state ProcessingState) bool {
+func (self Filter) has(state string) bool {
 	return self.Active && self.State == state
 }
 
 func ListSignonsHandler(db database.Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		var signons []SignOn
+		var signons []so.Signon
 		var filter Filter
 
+		ctx := context.Background()
 		if !r.URL.Query().Has("filter[state]") {
-			signons, _ = db.SignOnRepo().GetAll()
+			signons, _ = db.SignonRepo().ListAll(ctx)
 			filter = Filter{}
 		} else {
-			state := ProcessingStateFromString(r.URL.Query().Get("filter[state]"))
+			state := r.URL.Query().Get("filter[state]")
 			filter = Filter{State: state, Active: true}
-			signons, _ = db.SignOnRepo().GetByState(state)
+			signons, _ = db.SignonRepo().ListForState(ctx, r.URL.Query().Get("filter[state]"))
 		}
 
 		SignOnList(filter, signons).Render(r.Context(), w)
@@ -41,42 +42,55 @@ func ListSignonsHandler(db database.Service) func(w http.ResponseWriter, r *http
 
 func ToggleSidebarHandler(db database.Service, toogleOn bool) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, _ := strconv.Atoi(r.PathValue("id"))
-		signon, _ := db.SignOnRepo().GetById(id)
-
 		if !toogleOn {
 			return
 		}
 
-		Sidebar(signon).Render(r.Context(), w)
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+
+		if err != nil {
+			http.Error(w, "Invalid Id", http.StatusInternalServerError)
+			return
+		}
+
+		signon, signonContext, err := db.SignonRepo().GetById(context.Background(), id)
+
+		if err != nil {
+			http.Error(w, "No signon", http.StatusInternalServerError)
+			return
+		}
+
+		Sidebar(signon, signonContext).Render(r.Context(), w)
 	}
 }
 
 func UpdateSignonHandler(db database.Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 
 		if err != nil {
-			http.Error(w, "Error wrong id", http.StatusInternalServerError)
+			http.Error(w, "Invalid Id", http.StatusInternalServerError)
 			return
 		}
 
-		signon, err := db.SignOnRepo().GetById(id)
+		ctx := context.Background()
+
+		signon, signonContext, err := db.SignonRepo().GetById(ctx, id)
 
 		if err != nil {
-			http.Error(w, "Error retrieven the Sigon", http.StatusInternalServerError)
+			http.Error(w, "No signon", http.StatusInternalServerError)
 			return
 		}
 
-		signon.MyComment = r.FormValue("comment")
+		signonContext.Comment = r.FormValue("comment")
 
-		newState := ProcessingStateFromString(r.FormValue("state"))
-		if newState != signon.MyState {
-			signon.MyState = newState
-			RemovedTr(signon.Id).Render(r.Context(), w)
+		if r.FormValue("state") != signonContext.State {
+			signonContext.State = r.FormValue("state")
+
+			RemoveTr(signon.ID).Render(r.Context(), w)
 		}
 
-		db.SignOnRepo().UpdateContext(signon)
+		db.SignonRepo().UpdateSignonContext(ctx, signonContext)
 	}
 }
 
@@ -91,61 +105,19 @@ func UploadFileHandler(db database.Service) func(w http.ResponseWriter, r *http.
 
 		defer file.Close()
 
-		signons, _ := parseCSV(file)
+		rows, err := csv.ParseCsv(file)
 
-		db.SignOnRepo().SaveAll(signons)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		signons := lo.Map(rows, func(row *csv.CsvRow, _ int) so.Signon {
+			return row.ToSignOn()
+		})
+
+		db.SignonRepo().SaveAll(context.Background(), signons)
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
-}
-
-func parseCSV(file io.Reader) ([]SignOn, error) {
-	var signons []SignOn
-
-	// Initialize CSV reader.
-	reader := csv.NewReader(file)
-	reader.Comma = ';'
-
-	// Read the header row first.
-	if _, err := reader.Read(); err != nil {
-		return nil, fmt.Errorf("failed to read header: %v", err)
-	}
-
-	// Read each row and convert it to a SignOn struct.
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read record: %v", err)
-		}
-
-		id, err := strconv.Atoi(record[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid ID: %v", err)
-		}
-
-		user := SignOn{
-			Id:                   2,
-			IdPc:                 id,
-			Company:              sql.NullString{String: record[4], Valid: true},
-			Firstname:            sql.NullString{String: record[5], Valid: true},
-			Lastname:             sql.NullString{String: record[6], Valid: true},
-			Zip:                  sql.NullString{String: record[7], Valid: true},
-			City:                 sql.NullString{String: record[8], Valid: true},
-			Street:               sql.NullString{String: record[9], Valid: true},
-			HouseNo:              sql.NullString{String: record[10], Valid: true},
-			PCState:              sql.NullString{String: record[11], Valid: true},
-			DesiredDeliveryStart: sql.NullString{String: record[12], Valid: true},
-			MeterNo:              sql.NullString{String: record[14], Valid: true},
-			Malo:                 sql.NullString{String: record[15], Valid: true},
-			Melo:                 sql.NullString{String: record[16], Valid: true},
-			ConfigId:             sql.NullString{String: record[17], Valid: true},
-		}
-
-		signons = append(signons, user)
-	}
-
-	return signons, nil
 }

@@ -3,10 +3,9 @@ package database
 import (
 	"database/sql"
 	_ "embed"
-	"io"
 	"log"
 	"os"
-	"pc-beantragung/internal/domain/signon"
+	"pc-beantragung/internal/signon"
 
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/mattn/go-sqlite3"
@@ -18,7 +17,7 @@ var sqlite []byte
 // Service represents a service that interacts with a database.
 type Service interface {
 	DbInstance() *sql.DB
-	SignOnRepo() signon.SignOnRepo
+	SignonRepo() signon.SignOnRepo
 	Close() error
 }
 
@@ -30,25 +29,6 @@ var (
 	dburl      = "./signons.sqlite"
 	dbInstance *service
 )
-
-func copyFile(src, dst string) error {
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, sourceFile)
-	return err
-}
 
 func New() Service {
 	// Reuse Connection
@@ -79,8 +59,8 @@ func (s *service) DbInstance() *sql.DB {
 	return s.db
 }
 
-func (s *service) SignOnRepo() signon.SignOnRepo {
-	return signon.NewSignSqliteOnRepo(s.db)
+func (s *service) SignonRepo() signon.SignOnRepo {
+	return signon.SignonRepo(signon.New(s.db), s.db)
 }
 
 // Close closes the database connection.

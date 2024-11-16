@@ -45,7 +45,7 @@ test:
 # Clean the binary
 clean:
 	@echo "Cleaning..."
-	@rm -f beantragungen
+	@rm -f pcl-beantragung
 
 # Live Reload
 watch:
